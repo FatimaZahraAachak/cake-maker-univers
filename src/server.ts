@@ -2,10 +2,13 @@ import express from "express";
 import { db } from "./db/index";
 import { users } from "./db/schema";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
 
 const app = express();
 app.use(express.json());
-
+const JWT_SECRET = "mon-gateau-secret-key";
 app.get("/", (req, res) => {
     res.send("Bienvenu sur Mon Gateau")
 })
@@ -47,10 +50,44 @@ app.delete("/users/:id", (req, res) => {
     db.delete(users).where(eq(users.id, id)).run();
     res.json({ message: "utilisateur supprimé" })
 })
-app.post("/users", (req, res) => {
-    const { name, email } = req.body;
-    const newUser = db.insert(users).values({ name, email }).returning().get();
-    res.json(newUser);
+app.post("/register", async (req, res) => {
+    const { name, email, password } = req.body;
+
+    const existingUser = db.select().from(users).where(eq(users.email, email)).get();
+
+    if (existingUser) {
+        res.status(400).json({ error: "Cet email existe déjà" });
+        return;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = db.insert(users).values({ name, email, password: hashedPassword }).returning().get();
+
+    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET);
+
+    res.json({ token });
+});
+app.post("/login", async (req, res) => {
+    const { email, password } = req.body;
+
+    const user = db.select().from(users).where(eq(users.email, email)).get();
+
+    if (!user) {
+        res.status(401).json({ error: "Email ou mot de passe incorrect" });
+        return;
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+        res.status(401).json({ error: "Email ou mot de passe incorrect" });
+        return;
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+
+    res.json({ token });
 });
 
 const PORT = 3000;
