@@ -9,15 +9,34 @@ import jwt from "jsonwebtoken";
 const app = express();
 app.use(express.json());
 const JWT_SECRET = "mon-gateau-secret-key";
-app.get("/", (req, res) => {
+function authMiddleware(req: any, res: any, next: any) {
+    const header = req.headers.authorization;
+
+    if (!header) {
+        res.status(401).json({ error: "Token manquant" });
+        return;
+    }
+
+    const token = header.split(" ")[1];
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch {
+        res.status(401).json({ error: "Token invalide" });
+    }
+}
+
+app.get("/", authMiddleware,(req, res) => {
     res.send("Bienvenu sur Mon Gateau")
 })
-app.get("/users", (req, res) => {
+app.get("/users", authMiddleware, (req, res) => {
     const allUsers = db.select().from(users).all();
     res.json(allUsers);
 });
 
-app.get("/users/:id", (req, res) => {
+app.get("/users/:id", authMiddleware, (req, res) => {
     const id = Number(req.params.id);
     const user = db.select().from(users).where(eq(users.id, id)).get();
     if (!user) {
@@ -26,7 +45,7 @@ app.get("/users/:id", (req, res) => {
     }
     res.json(user);
 });
-app.put("/users/:id", (req, res) => {
+app.put("/users/:id", authMiddleware, (req, res) => {
     const id = Number(req.params.id);
     const { name, email } = req.body;
 
@@ -40,7 +59,7 @@ app.put("/users/:id", (req, res) => {
     const updatedUser = db.update(users).set({ name, email }).where(eq(users.id, id)).returning().get();
     res.json(updatedUser);
 });
-app.delete("/users/:id", (req, res) => {
+app.delete("/users/:id", authMiddleware, (req, res) => {
     const id = Number(req.params.id);
     const user = db.select().from(users).where(eq(users.id, id)).get();
     if (!user) {
