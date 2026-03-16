@@ -1,6 +1,6 @@
 import express from "express";
 import { db } from "./db/index";
-import { users } from "./db/schema";
+import { users, profiles } from "./db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -33,7 +33,7 @@ function authMiddleware(req: any, res: any, next: any) {
 app.get("/", authMiddleware, (req, res) => {
     res.send("Bienvenu sur Mon Gateau")
 })
-app.get("/users", authMiddleware, (req, res) => {
+app.get("/users", authMiddleware, (req: any, res: any) => {
     const allUsers = db.select({
         id: users.id,
         name: users.name,
@@ -45,7 +45,7 @@ app.get("/users", authMiddleware, (req, res) => {
     res.json(allUsers);
 });
 
-app.get("/users/:id", authMiddleware, (req, res) => {
+app.get("/users/:id", authMiddleware, (req: any, res: any) => {
     const id = Number(req.params.id);
     const user = db.select({
         id: users.id,
@@ -61,7 +61,7 @@ app.get("/users/:id", authMiddleware, (req, res) => {
     }
     res.json(user);
 });
-app.put("/users/:id", authMiddleware, (req, res) => {
+app.put("/users/:id", authMiddleware, (req: any, res: any) => {
     const id = Number(req.params.id);
     const { name, email } = req.body;
 
@@ -75,7 +75,7 @@ app.put("/users/:id", authMiddleware, (req, res) => {
     const updatedUser = db.update(users).set({ name, email }).where(eq(users.id, id)).returning().get();
     res.json(updatedUser);
 });
-app.delete("/users/:id", authMiddleware, (req, res) => {
+app.delete("/users/:id", authMiddleware, (req: any, res: any) => {
     const id = Number(req.params.id);
     const user = db.select().from(users).where(eq(users.id, id)).get();
     if (!user) {
@@ -123,6 +123,21 @@ app.post("/login", async (req, res) => {
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
 
     res.json({ token });
+});
+
+app.post("/profile", authMiddleware, async (req:any, res:any) => {
+    const { bio, city, specialty, photo } = req.body;
+    const userId = req.user.id;
+
+    const existingProfile = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
+
+    if (existingProfile) {
+        res.status(400).json({ error: "Tu as déjà un profil" });
+        return;
+    }
+
+    const newProfile = db.insert(profiles).values({ userId, bio, city, specialty, photo }).returning().get();
+    res.json(newProfile);
 });
 
 const PORT = 3000;
