@@ -30,7 +30,7 @@ function authMiddleware(req: any, res: any, next: any) {
     }
 }
 
-app.get("/", authMiddleware,(req, res) => {
+app.get("/", authMiddleware, (req, res) => {
     res.send("Bienvenu sur Mon Gateau")
 })
 app.get("/users", authMiddleware, (req, res) => {
@@ -38,6 +38,7 @@ app.get("/users", authMiddleware, (req, res) => {
         id: users.id,
         name: users.name,
         email: users.email,
+        role: users.role,
         createdAt: users.createdAt,
     }).from(users).all();
 
@@ -50,6 +51,7 @@ app.get("/users/:id", authMiddleware, (req, res) => {
         id: users.id,
         name: users.name,
         email: users.email,
+        role: users.role,
         createdAt: users.createdAt,
     }).from(users).where(eq(users.id, id)).get();
 
@@ -84,7 +86,7 @@ app.delete("/users/:id", authMiddleware, (req, res) => {
     res.json({ message: "utilisateur supprimé" })
 })
 app.post("/register", async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     const existingUser = db.select().from(users).where(eq(users.email, email)).get();
 
@@ -95,7 +97,7 @@ app.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = db.insert(users).values({ name, email, password: hashedPassword }).returning().get();
+    const newUser = db.insert(users).values({ name, email, password: hashedPassword, role }).returning().get();
 
     const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET);
 
