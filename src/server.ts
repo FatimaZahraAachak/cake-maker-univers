@@ -4,11 +4,13 @@ import { users } from "./db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import "dotenv/config";
+
 
 
 const app = express();
 app.use(express.json());
-const JWT_SECRET = "mon-gateau-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET!;
 function authMiddleware(req: any, res: any, next: any) {
     const header = req.headers.authorization;
 
@@ -32,13 +34,25 @@ app.get("/", authMiddleware,(req, res) => {
     res.send("Bienvenu sur Mon Gateau")
 })
 app.get("/users", authMiddleware, (req, res) => {
-    const allUsers = db.select().from(users).all();
+    const allUsers = db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+    }).from(users).all();
+
     res.json(allUsers);
 });
 
 app.get("/users/:id", authMiddleware, (req, res) => {
     const id = Number(req.params.id);
-    const user = db.select().from(users).where(eq(users.id, id)).get();
+    const user = db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+    }).from(users).where(eq(users.id, id)).get();
+
     if (!user) {
         res.status(404).json({ error: "Utilisateur non trouvé" });
         return;
