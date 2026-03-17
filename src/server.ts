@@ -125,7 +125,7 @@ app.post("/login", async (req, res) => {
     res.json({ token });
 });
 
-app.post("/profile", authMiddleware, async (req:any, res:any) => {
+app.post("/profile", authMiddleware, async (req: any, res: any) => {
     const { bio, city, specialty, photo } = req.body;
     const userId = req.user.id;
 
@@ -139,7 +139,30 @@ app.post("/profile", authMiddleware, async (req:any, res:any) => {
     const newProfile = db.insert(profiles).values({ userId, bio, city, specialty, photo }).returning().get();
     res.json(newProfile);
 });
+app.put("/profile", authMiddleware, (req: any, res: any) => {
+    const userId = req.user.id;
+    const { bio, city, specialty, photo } = req.body;
 
+    const existingProfile = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
+
+    if (!existingProfile) {
+        res.status(404).json({ error: "tu n'as pas encore de profil" });
+        return;
+    }
+
+    const updatedProfile = db.update(profiles).set({ bio, city, specialty, photo }).where(eq(profiles.userId, userId)).returning().get();
+    res.json(updatedProfile);
+});
+app.get("/profile/:id", (req: any, res: any) => {
+    const userId = Number(req.params.id);
+    const profil = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
+
+    if (!profil) {
+        res.status(404).json({ error: "Profil non trouvé" });
+        return;
+    }
+    res.json(profil);
+});
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Serveur lancé sur le port ${PORT}`);
