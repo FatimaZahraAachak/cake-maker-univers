@@ -155,14 +155,24 @@ app.put("/profile", authMiddleware, (req: any, res: any) => {
 });
 app.get("/profile/:id", (req: any, res: any) => {
     const userId = Number(req.params.id);
-    const profil = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
+    const profile = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
 
-    if (!profil) {
-        res.status(404).json({ error: "Profil non trouvé" });
+    if (!profile) {
+        res.status(404).json({ error: "Profile non trouvé" });
         return;
     }
-    res.json(profil);
+    res.json(profile);
 });
+app.delete("/profile", authMiddleware, (req: any, res: any) => {
+    const userId = req.user.id;
+    const existingProfile = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
+    if (!existingProfile) {
+        res.status(404).json({ error: "profile non trouvé" });
+        return;
+    }
+    db.delete(profiles).where(eq(profiles.userId, userId)).run();
+    res.json({ message: "utilisateur supprimé" })
+})
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Serveur lancé sur le port ${PORT}`);
