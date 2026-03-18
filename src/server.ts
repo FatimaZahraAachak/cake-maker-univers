@@ -1,6 +1,6 @@
 import express from "express";
 import { db } from "./db/index";
-import { users, profiles } from "./db/schema";
+import { users } from "./db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -38,7 +38,6 @@ app.get("/users", authMiddleware, (req: any, res: any) => {
         id: users.id,
         name: users.name,
         email: users.email,
-        role: users.role,
         createdAt: users.createdAt,
     }).from(users).all();
 
@@ -51,7 +50,6 @@ app.get("/users/:id", authMiddleware, (req: any, res: any) => {
         id: users.id,
         name: users.name,
         email: users.email,
-        role: users.role,
         createdAt: users.createdAt,
     }).from(users).where(eq(users.id, id)).get();
 
@@ -86,7 +84,7 @@ app.delete("/users/:id", authMiddleware, (req: any, res: any) => {
     res.json({ message: "utilisateur supprimé" })
 })
 app.post("/register", async (req, res) => {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
     const existingUser = db.select().from(users).where(eq(users.email, email)).get();
 
@@ -97,7 +95,7 @@ app.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = db.insert(users).values({ name, email, password: hashedPassword, role }).returning().get();
+    const newUser = db.insert(users).values({ name, email, password: hashedPassword }).returning().get();
 
     const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET);
 
@@ -124,55 +122,43 @@ app.post("/login", async (req, res) => {
 
     res.json({ token });
 });
-
-app.post("/profile", authMiddleware, async (req: any, res: any) => {
-    const { bio, city, specialty, photo } = req.body;
-    const userId = req.user.id;
-
-    const existingProfile = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
-
-    if (existingProfile) {
-        res.status(400).json({ error: "Tu as déjà un profil" });
-        return;
-    }
-
-    const newProfile = db.insert(profiles).values({ userId, bio, city, specialty, photo }).returning().get();
-    res.json(newProfile);
-});
 app.put("/profile", authMiddleware, (req: any, res: any) => {
     const userId = req.user.id;
-    const { bio, city, specialty, photo } = req.body;
+    const { bio, city, specialty, phone, photo } = req.body;
 
-    const existingProfile = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
+    const user = db.select().from(users).where(eq(users.id, userId)).get();
 
-    if (!existingProfile) {
-        res.status(404).json({ error: "tu n'as pas encore de profil" });
+    if (!user) {
+        res.status(404).json({ error: "Utilisateur non trouvé" });
         return;
     }
 
-    const updatedProfile = db.update(profiles).set({ bio, city, specialty, photo }).where(eq(profiles.userId, userId)).returning().get();
-    res.json(updatedProfile);
+    const updatedUser = db.update(users).set({ bio, city, specialty, phone, photo }).where(eq(users.id, userId)).returning().get();
+    res.json(updatedUser);
 });
-app.get("/profile/:id", (req: any, res: any) => {
-    const userId = Number(req.params.id);
-    const profile = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
+app.get("/profile/:id", (req, res) => {
+    const id = Number(req.params.id);
 
-    if (!profile) {
-        res.status(404).json({ error: "Profile non trouvé" });
+    const user = db.select({
+        id: users.id,
+        name: users.name,
+        bio: users.bio,
+        city: users.city,
+        specialty: users.specialty,
+        phone: users.phone,
+        photo: users.photo,
+    }).from(users).where(eq(users.id, id)).get();
+
+    if (!user) {
+        res.status(404).json({ error: "Profil non trouvé" });
         return;
     }
-    res.json(profile);
+
+    res.json(user);
 });
-app.delete("/profile", authMiddleware, (req: any, res: any) => {
-    const userId = req.user.id;
-    const existingProfile = db.select().from(profiles).where(eq(profiles.userId, userId)).get();
-    if (!existingProfile) {
-        res.status(404).json({ error: "profile non trouvé" });
-        return;
-    }
-    db.delete(profiles).where(eq(profiles.userId, userId)).run();
-    res.json({ message: "utilisateur supprimé" })
-})
+
+
+
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Serveur lancé sur le port ${PORT}`);
