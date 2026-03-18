@@ -12,4 +12,13 @@ export const users = sqliteTable("users", {
     photo: text("photo"),
     createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
 });
+export const posts = sqliteTable("posts", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    price: integer("price").notNull(),
+    photo: text("photo"),
+    userId: integer("user_id").notNull().references(() => users.id),
+    createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
+});
 
