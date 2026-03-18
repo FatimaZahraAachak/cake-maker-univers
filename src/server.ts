@@ -133,7 +133,18 @@ app.put("/profile", authMiddleware, (req: any, res: any) => {
         return;
     }
 
-    const updatedUser = db.update(users).set({ bio, city, specialty, phone, photo }).where(eq(users.id, userId)).returning().get();
+    db.update(users).set({ bio, city, specialty, phone, photo }).where(eq(users.id, userId)).run();
+
+    const updatedUser = db.select({
+        id: users.id,
+        name: users.name,
+        bio: users.bio,
+        city: users.city,
+        specialty: users.specialty,
+        phone: users.phone,
+        photo: users.photo,
+    }).from(users).where(eq(users.id, userId)).get();
+
     res.json(updatedUser);
 });
 app.get("/profile/:id", (req, res) => {
