@@ -1,7 +1,7 @@
 import express from "express";
 import { db } from "../db/index";
 import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, like, or } from "drizzle-orm";
 import { authMiddleware } from "../middleware/auth";
 
 const router = express.Router();
@@ -106,6 +106,33 @@ router.get("/profile/:id", (req, res) => {
     }
 
     res.json(user);
+});
+router.get("/search", (req, res) => {
+    const q = String(req.query.q || "");
+
+    if (!q) {
+        res.status(400).json({ error: "Mot-clé manquant" });
+        return;
+    }
+
+    const results = db.select({
+        id: users.id,
+        name: users.name,
+        bio: users.bio,
+        city: users.city,
+        specialty: users.specialty,
+        phone: users.phone,
+        photo: users.photo,
+    }).from(users).where(
+        or(
+            like(users.name, `%${q}%`),
+            like(users.city, `%${q}%`),
+            like(users.specialty, `%${q}%`),
+            like(users.bio, `%${q}%`),
+        )
+    ).all();
+
+    res.json(results);
 });
 
 export default router;
