@@ -5,12 +5,26 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
+import { z } from "zod";
+
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET!;
+const registerSchema = z.object({
+    name: z.string().min(2, "Le nom doit avoir au moins 2 caractères"),
+    email: z.string().includes("@", { message: "Email invalide" }),
+    password: z.string().min(6, "Le mot de passe doit avoir au moins 6 caractères"),
+});
 
 router.post("/register", async (req, res) => {
     const { name, email, password } = req.body;
+    const validation = registerSchema.safeParse(req.body);
+
+    if (!validation.success) {
+        res.status(400).json({ error: validation.error.issues[0].message });
+
+        return;
+    }
 
     const existingUser = db.select().from(users).where(eq(users.email, email)).get();
 
