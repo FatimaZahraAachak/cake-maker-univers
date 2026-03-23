@@ -198,7 +198,26 @@ app.delete("/posts/:id", authMiddleware, (req: any, res: any) => {
     db.delete(posts).where(eq(posts.id, postId)).run();
     res.json({ message: "Post supprimé" });
 });
+app.put("/posts/:id", authMiddleware, (req: any, res: any) => {
+    const userId = req.user.id;
+    const postId = Number(req.params.id);
+    const { title, description, price, photo } = req.body;
 
+    const post = db.select().from(posts).where(eq(posts.id, postId)).get();
+
+
+    if (!post) {
+        res.status(404).json({ error: "post non trouvé" });
+        return;
+    }
+    if (post.userId !== userId) {
+        res.status(403).json({ error: "Tu ne peux modifier que tes propres posts" });
+        return;
+    }
+
+    const updatedPost = db.update(posts).set({ title, description, price, photo }).where(eq(posts.id, postId)).returning().get();
+    res.json(updatedPost);
+});
 
 const PORT = 3000;
 app.listen(PORT, () => {
