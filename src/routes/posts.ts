@@ -3,9 +3,21 @@ import { db } from "../db/index";
 import { posts } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { authMiddleware } from "../middleware/auth";
+import { z } from "zod";
 
 
 const router = express.Router();
+const postSchema = z.object({
+    title: z.string().min(2, "Le titre doit avoir au moins 2 caractères"),
+    description: z.string().min(10, "La description doit avoir au moins 10 caractères"),
+    price: z.number().positive("Le prix doit être positif"),
+    photo: z.string().optional(),
+}).required({
+    title: true,
+    description: true,
+    price: true,
+});
+
 
 router.get("/posts", (req, res) => {
     const allPosts = db.select().from(posts).all();
@@ -14,6 +26,19 @@ router.get("/posts", (req, res) => {
 
 router.post("/posts", authMiddleware, (req: any, res: any) => {
     const userId = req.user.id;
+    const validation = postSchema.safeParse(req.body);
+
+    if (!validation.success) {
+        const issue = validation.error.issues[0];
+        const message = issue.path.length > 0
+            ? `Le champ "${String(issue.path[0])}" est obligatoire ou invalide`
+            : issue.message;
+        res.status(400).json({ error: message });
+
+
+        return;
+    }
+
     const { title, description, price, photo } = req.body;
 
     const newPost = db.insert(posts).values({ title, description, price, photo, userId }).returning().get();
