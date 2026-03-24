@@ -15,6 +15,10 @@ const registerSchema = z.object({
     email: z.string().includes("@", { message: "Email invalide" }),
     password: z.string().min(6, "Le mot de passe doit avoir au moins 6 caractères"),
 });
+const loginSchema = z.object({
+    email: z.string().includes("@", { message: "Email invalide" }),
+    password: z.string().min(1, "Le mot de passe est obligatoire"),
+});
 
 router.post("/register", async (req, res) => {
     const { name, email, password } = req.body;
@@ -42,7 +46,12 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
     const { email, password } = req.body;
+    const validation = loginSchema.safeParse(req.body);
 
+    if (!validation.success) {
+        res.status(400).json({ error: validation.error.issues[0].message });
+        return;
+    }
     const user = db.select().from(users).where(eq(users.email, email)).get();
 
     if (!user) {
